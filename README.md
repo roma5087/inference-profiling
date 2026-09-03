@@ -19,8 +19,12 @@ Model checkpoints/weights are not committed here (re-downloadable, not the artif
 ## Plan
 
 - [ ] **Stage −1 — GPU selection.** Choose the card because of what it will show, not because it's cheap. A100/H100 80GB over A10/L4, so a real gap surfaces as scheduling/launch overhead instead of both engines converging on a memory-bound floor.
+  - Default to **A100 80GB** over H100 — cheaper (~$1.6-2/hr on brokers like Brev), and an 8B model at bf16 won't saturate its bandwidth at the batch sizes Stage 1's sweep will hit. Switch to H100 only if Stage 1's coarse pass shows both engines' throughput curves *converging* to the same shape — that's the signal you're bandwidth-bound rather than scheduler-bound, and the fix is headroom, not more analysis.
+  - Provider listing risk: some GPU broker listings (e.g. Brev/Hyperstack) are marked pre-release, **cannot be stopped or restarted**, and **delete all instance data irrecoverably** if the org runs out of credits. Check listing details before committing — prefer a stable listing at comparable price if one exists.
+  - Disk storage is typically bundled and fixed at this GPU tier (e.g. 850GB SSD, included in the hourly rate) — not a separate sizing decision, and comfortably more than the checkpoint (~16GB) plus trace files need.
 
-- [ ] **Stage 0 — Environment.** Install vLLM and SGLang against the same checkpoint, bf16 precision, chat template, and stop tokens. Serve identical prompts through each at greedy decoding (temperature 0).
+- [ ] **Stage 0 — Environment.** First command after SSH, before installing anything: verify `nsys` perf-counter access — some cloud GPU images restrict the counters Nsight Systems needs. On an instance with no stop/restart, a failure caught later means spinning up a fresh instance, not fixing this one in place.
+  - Install vLLM and SGLang against the same checkpoint, bf16 precision, chat template, and stop tokens. Serve identical prompts through each at greedy decoding (temperature 0).
   - Pass criteria:
     - *Not required:* bit-identical token IDs — bf16 plus two different attention kernels and sampling code paths guarantees drift under floating-point non-associativity. Record the observed match rate as a baseline, don't gate on it.
     - *Hard fail:* garbage on either engine (empty completion, repetition loop, mid-word truncation) across ~20 diverse prompts.
