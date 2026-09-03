@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+
+# model weights — re-downloadable, not the artifact
+*.safetensors
+*.bin
+*.gguf
+models/
+.cache/huggingface/
