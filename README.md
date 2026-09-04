@@ -16,6 +16,15 @@ number — what causes it.
 
 Model checkpoints/weights are not committed here (re-downloadable, not the artifact) — see `.gitignore`. Everything else — scripts, configs, traces, parsed results, the write-up — lives in this repo.
 
+## Pinned versions
+
+| Package | Version | Notes |
+|---|---|---|
+| vLLM | 0.27.1 | A100 default attention backend is not FlashInfer, but `VLLM_ATTENTION_BACKEND=FLASHINFER` forces it (FlashInfer supports SM80/A100). |
+| SGLang | 0.5.18 | Already defaults to FlashInfer on non-Hopper GPUs, including A100. |
+
+This resolves Stage 4's open question: forcing both engines onto FlashInfer on A100 is confirmed toggleable, not just planned — SGLang needs no change, vLLM needs the env var above.
+
 ## Plan
 
 - [ ] **Stage −1 — GPU selection.** Choose the card because of what it will show, not because it's cheap. A100/H100 80GB over A10/L4, so a real gap surfaces as scheduling/launch overhead instead of both engines converging on a memory-bound floor.
@@ -24,11 +33,12 @@ Model checkpoints/weights are not committed here (re-downloadable, not the artif
   - Disk storage is typically bundled and fixed at this GPU tier (e.g. 850GB SSD, included in the hourly rate) — not a separate sizing decision, and comfortably more than the checkpoint (~16GB) plus trace files need.
 
 - [ ] **Stage 0 — Environment.** First command after SSH, before installing anything: verify `nsys` perf-counter access — some cloud GPU images restrict the counters Nsight Systems needs. On an instance with no stop/restart, a failure caught later means spinning up a fresh instance, not fixing this one in place.
-  - Install vLLM and SGLang against the same checkpoint, bf16 precision, chat template, and stop tokens. Serve identical prompts through each at greedy decoding (temperature 0).
+  - Install vLLM 0.27.1 and SGLang 0.5.18 (see Pinned versions) against the same checkpoint, bf16 precision, chat template, and stop tokens. Serve identical prompts through each at greedy decoding (temperature 0).
+  - Prompt sets: `bench/prompts_sanity.json` (20 diverse prompts) and `bench/prompts_deterministic.json` (10 arithmetic/single-fact prompts with `expected_answer`).
   - Pass criteria:
     - *Not required:* bit-identical token IDs — bf16 plus two different attention kernels and sampling code paths guarantees drift under floating-point non-associativity. Record the observed match rate as a baseline, don't gate on it.
-    - *Hard fail:* garbage on either engine (empty completion, repetition loop, mid-word truncation) across ~20 diverse prompts.
-    - *Hard fail:* on ~10 deterministic prompts (arithmetic, single-fact QA), the two engines disagree on the *answer* — that's a chat-template/tokenizer/stop-token bug, not float drift, and it's not safe to profile through.
+    - *Hard fail:* garbage on either engine (empty completion, repetition loop, mid-word truncation) on any prompt in `prompts_sanity.json`.
+    - *Hard fail:* on any prompt in `prompts_deterministic.json`, the two engines disagree on the *answer* — that's a chat-template/tokenizer/stop-token bug, not float drift, and it's not safe to profile through.
 
 - [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench_serving`, SGLang's equivalent), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
   - Coarse pass, per engine: wide log-spaced grid (e.g. 1, 2, 4, 8, 16, 32, 64 req/s) run independently on each engine to find roughly where its throughput plateaus / p99 inflects. Don't assume the knees line up.
@@ -39,8 +49,8 @@ Model checkpoints/weights are not committed here (re-downloadable, not the artif
 
 - [ ] **Stage 3 — Torch profiler pass.** Attach each engine's profiler hook (vLLM: `VLLM_TORCH_PROFILER_DIR`; SGLang's equivalent flag). Pull self-CUDA-time by op. Cross-check against the Stage 2 inventory.
 
-- [ ] **Stage 4 — Isolate the cause.** Pick the single most promising difference from Stages 2-3 and design an experiment that changes only that variable. Forcing the same attention backend on both engines (FlashInfer or FlashAttention) is well-supported and a safe first target.
-  - Check before committing to a mechanism: verify it's actually toggleable on both engines. Attention-backend selection is well-exposed on both sides; scheduler-level behavior like chunked-prefill is engine-specific and sometimes has no clean flag.
+- [ ] **Stage 4 — Isolate the cause.** Pick the single most promising difference from Stages 2-3 and design an experiment that changes only that variable. First target: force both engines onto FlashInfer (SGLang: no change needed; vLLM: `VLLM_ATTENTION_BACKEND=FLASHINFER`) — confirmed toggleable on A100, see Pinned versions.
+  - If the attention-backend experiment doesn't explain the gap, the next candidate is scheduler-level behavior (e.g. chunked-prefill) — that's engine-specific and sometimes has no clean flag, so verify it's actually toggleable on both engines before committing to it.
 
 - [ ] **Stage 5 — Write-up.** The gap (Stage 1), the hypothesis (Stages 2-3), the isolating experiment (Stage 4), the result. Lead with numbers and profiler evidence, not narrative. Lives in `write-up.md`.
 

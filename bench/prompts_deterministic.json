@@ -1,0 +1,12 @@
+[
+  {"prompt": "What is 17 + 26?", "expected_answer": "43"},
+  {"prompt": "What is 144 divided by 12?", "expected_answer": "12"},
+  {"prompt": "What is the capital of France?", "expected_answer": "Paris"},
+  {"prompt": "What is the chemical symbol for gold?", "expected_answer": "Au"},
+  {"prompt": "How many continents are there on Earth?", "expected_answer": "7"},
+  {"prompt": "What is 9 multiplied by 8?", "expected_answer": "72"},
+  {"prompt": "What is the boiling point of water in Celsius at sea level?", "expected_answer": "100"},
+  {"prompt": "Who wrote the play Romeo and Juliet?", "expected_answer": "William Shakespeare"},
+  {"prompt": "What is the square root of 81?", "expected_answer": "9"},
+  {"prompt": "What planet is known as the Red Planet?", "expected_answer": "Mars"}
+]
