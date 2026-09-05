@@ -52,11 +52,13 @@ This resolves Stage 4's open question: forcing both engines onto FlashInfer on A
 - [ ] **Stage 4 — Isolate the cause.** Pick the single most promising difference from Stages 2-3 and design an experiment that changes only that variable. First target: force both engines onto FlashInfer (SGLang: no change needed; vLLM: `VLLM_ATTENTION_BACKEND=FLASHINFER`) — confirmed toggleable on A100, see Pinned versions.
   - If the attention-backend experiment doesn't explain the gap, the next candidate is scheduler-level behavior (e.g. chunked-prefill) — that's engine-specific and sometimes has no clean flag, so verify it's actually toggleable on both engines before committing to it.
 
-- [ ] **Stage 5 — Write-up.** The gap (Stage 1), the hypothesis (Stages 2-3), the isolating experiment (Stage 4), the result. Lead with numbers and profiler evidence, not narrative. Lives in `write-up.md`.
+- [ ] **Stage 5 — Write-up & dashboard.** The gap (Stage 1), the hypothesis (Stages 2-3), the isolating experiment (Stage 4), the result. Lead with numbers and profiler evidence, not narrative. Prose lives in `write-up.md`.
+  - Dashboard: `dashboard/app.py`, a Streamlit app reading directly from `results/` — interactive throughput/latency curves (Stage 1), the annotated nsys finding and the Stage 4 experiment result. Deploy to Streamlit Community Cloud for a public link. Built once Stage 1 produces real data — not before, and never with placeholder numbers standing in for results.
 
 ## Layout
 
 - `bench/` — benchmark scripts and sweep configs (Stage 1)
 - `traces/` — nsys and torch profiler captures (Stage 2-3)
 - `results/` — parsed metrics, plots, comparison tables (Stage 1, 4)
+- `dashboard/` — Streamlit app for Stage 5 (empty until real results exist)
 - `write-up.md` — Stage 5 deliverable (stub until then)
