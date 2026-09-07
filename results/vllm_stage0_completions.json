@@ -1,0 +1,167 @@
+{
+  "engine": "vllm",
+  "sanity": [
+    {
+      "prompt": "Write a haiku about autumn leaves.",
+      "completion": "Golden leaves descend\nTwirling, drifting to the ground\nAutumn's fleeting sigh",
+      "latency_s": 0.61
+    },
+    {
+      "prompt": "Explain the difference between TCP and UDP in two sentences.",
+      "completion": "Here is a two-sentence explanation of the difference between TCP and UDP:\n\nTCP (Transmission Control Protocol) is a connection-oriented protocol that ensures data is delivered reliably and in the correct order, but it can be slower and more resource-intensive due to its error-checking and retransmission mechanisms. UDP (User Datagram Protocol), on the other hand, is a connectionless protocol that prioritizes speed and efficiency, but it does not guarantee delivery or order of packets, making it more suitable for applications that can tolerate some data loss or corruption.",
+      "latency_s": 3.26
+    },
+    {
+      "prompt": "List three benefits of regular exercise.",
+      "completion": "Here are three benefits of regular exercise:\n\n1. **Improves Physical Health**: Regular exercise can help to reduce the risk of chronic diseases, such as heart disease, diabetes, and some cancers. It can also help to manage weight, improve sleep quality, and boost overall physical fitness.\n2. **Enhances Mental Well-being**: Exercise has been shown to have a positive impact on mental health, reducing symptoms of anxiety and depression, and improving mood and overall sense of well-being. It can also help to improve cognitive function and reduce the risk of age-related cognitive decline.\n3. **Increases Energy and Productivity**: Regular exercise can increase energy levels and improve overall productivity. Exercise has been shown to boost energy levels by increasing the production of certain neurotransmitters, such as dopamine and endorphins, which can help to improve motivation and focus. Additionally, exercise can help to improve time management and organizational skills, leading to greater productivity in both personal and professional life.",
+      "latency_s": 5.82
+    },
+    {
+      "prompt": "Summarize the plot of Cinderella in one paragraph.",
+      "completion": "Cinderella is a classic fairy tale about a young girl named Cinderella who is treated poorly by her stepmother and stepsisters after her father's death. Despite her hardships, Cinderella remains kind and beautiful, and is befriended by a fairy godmother who helps her attend the prince's ball by transforming a pumpkin into a carriage, mice into horses, and a rat into a coachman. At the ball, Cinderella and the prince dance and fall in love, but she must leave abruptly when the clock strikes midnight, leaving behind one of her glass slippers. The prince searches for her everywhere, trying the slipper on the feet of all the maidens in the land, until he finally finds Cinderella and marries her, living happily ever after.",
+      "latency_s": 4.65
+    },
+    {
+      "prompt": "Translate 'good morning' into Spanish, French, and German.",
+      "completion": "Here are the translations:\n\n* Spanish: \"Buenos d\u00edas\"\n* French: \"Bonjour\"\n* German: \"Guten Morgen\"\n\nNote:\n\n* In Spanish, \"buenos d\u00edas\" is a formal way of saying \"good morning\". In informal settings, you can use \"buenos d\u00edas\" or simply \"d\u00edas\".\n* In French, \"bonjour\" is a general greeting that can be used at any time of day, but it's often used in the morning.\n* In German, \"guten Morgen\" is a formal way of saying \"good morning\". In informal settings, you can use \"morgen\" or simply \"gut\" (meaning \"good\").",
+      "latency_s": 4.29
+    },
+    {
+      "prompt": "Write a short product description for a wireless mouse.",
+      "completion": "Here is a short product description for a wireless mouse:\n\n**Introducing the Wireless Mouse 3000**\n\nStay connected and productive with our Wireless Mouse 3000, designed for comfort and convenience. This sleek and compact mouse features advanced wireless technology, allowing you to move freely without the hassle of cords. With a long-lasting battery life and easy pairing process, you can focus on what matters most - getting work done.\n\n**Key Features:**\n\n* Wireless connectivity for up to 30 feet of range\n* Ergonomic design for comfortable grip and reduced fatigue\n* Long-lasting battery life (up to 12 months on a single set of batteries)\n* Easy pairing process with your computer or device\n* High-precision optical sensor for accurate tracking\n\n**Perfect for:**\n\n* Office workers who need a reliable and convenient mouse\n* Gamers who want a wireless mouse with precise control\n* Travelers who need a lightweight and portable mouse\n\n**Order now and experience the freedom of wireless computing!**",
+      "latency_s": 6.0
+    },
+    {
+      "prompt": "What are the main causes of the French Revolution?",
+      "completion": "The French Revolution, which lasted from 1789 to 1799, was a complex and multifaceted event with various causes and contributing factors. Some of the main causes of the French Revolution include:\n\n1. **Financial Crisis**: France was deeply in debt due to the costly wars of the 18th century, including the Seven Years' War and the American Revolutionary War. The government was struggling to pay its debts, which led to widespread discontent among the population.\n2. **Social Inequality**: France was a society deeply divided between the wealthy nobility and the common people, known as the Third Estate. The nobility held significant power and wealth, while the common people were often poor and lacked opportunities for social mobility.\n3. **Absolute Monarchy**: King Louis XVI was an absolute monarch, meaning he had complete control over the government and made decisions without consulting the people or the nobility. This led to feelings of resentment and frustration among the population.\n4. **Food Shortages and Economic Hardship**: A series of poor harvests and economic downturns led to food shortages and widespread poverty. This made it difficult for people to survive, and they began to look for solutions to their economic problems.\n5. **Influence of Enlightenment Ideas**: The Enlightenment, a",
+      "latency_s": 7.6
+    },
+    {
+      "prompt": "Give me a recipe for a basic omelette.",
+      "completion": "A classic! Here's a simple recipe for a basic omelette:\n\n**Ingredients:**\n\n* 2 large eggs\n* Salt and pepper to taste\n* 1 tablespoon butter or oil\n\n**Instructions:**\n\n1. Crack the eggs into a bowl and whisk them together with a fork until the whites and yolks are fully incorporated. Add a pinch of salt and pepper to taste.\n2. Heat a small non-stick pan over medium heat. Add the butter or oil and let it melt. Once melted, tilt the pan to make sure the surface is evenly coated.\n3. Pour the egg mixture into the pan and let it cook for about 30 seconds.\n4. Use a spatula to gently lift the edges of the omelette and tilt the pan so that the uncooked egg can flow to the top.\n5. Once the eggs are almost set, use the spatula to fold the omelette in half.\n6. Cook for another 30 seconds to a minute, until the eggs are fully set and the cheese is melted (if using).\n7. Slide the omelette out of the pan onto a plate and serve hot.\n\n**Tips:**\n\n* Use room temperature eggs for easier whisking and a fluffier omelette",
+      "latency_s": 7.49
+    },
+    {
+      "prompt": "Explain quantum entanglement to a 10-year-old.",
+      "completion": "Wow, you must be super curious to learn about quantum entanglement!\n\nSo, you know how things can be connected, like your phone and charger? When you plug your phone into the charger, they work together to make your phone charge. But with quantum entanglement, it's like two things are connected in a special way, even if they're really far apart.\n\nImagine you have two toy boxes, one red and one blue. Inside each box, there's a special kind of toy that can be either \"up\" or \"down\". Now, imagine that these toys are connected in a way that if you change the toy in the red box to \"up\", the toy in the blue box will instantly become \"down\", even if they're on opposite sides of the world!\n\nThis is kind of like magic, but it's actually real! Scientists have done experiments to show that when two things are entangled, they can affect each other, even if they're really far apart. It's like they're \"talking\" to each other in a way that's faster than the speed of light.\n\nBut here's the really cool part: this connection happens even if nobody is looking at the toys or trying to control them. It's like they have a special",
+      "latency_s": 7.5
+    },
+    {
+      "prompt": "Write a professional email declining a meeting invitation.",
+      "completion": "Here is a sample professional email declining a meeting invitation:\n\nSubject: Declining Meeting Invitation\n\nDear [Name],\n\nThank you for inviting me to a meeting on [Date and Time] to discuss [Topic]. I appreciate the opportunity to discuss [Topic] and am grateful for your consideration.\n\nUnfortunately, I regret to inform you that I will be unable to attend the meeting. [Optional: You can provide a brief explanation for declining, e.g. \"I have a prior commitment\" or \"I have a conflicting meeting scheduled\"].\n\nPlease know that I am available to discuss [Topic] at a later time and would be happy to schedule an alternative meeting if needed. If there is any additional information or materials that I can review in advance, please let me know.\n\nThank you again for the invitation, and I look forward to connecting with you soon.\n\nBest regards,\n\n[Your Name]",
+      "latency_s": 5.36
+    },
+    {
+      "prompt": "What's the difference between a stock and a bond?",
+      "completion": "Stocks and bonds are two of the most common types of investment instruments, but they work in different ways and offer different benefits. Here's a breakdown of the main differences:\n\n**Stocks (Equities):**\n\n1. **Ownership**: When you buy a stock, you're essentially buying a small piece of a company's ownership. You become a shareholder.\n2. **Risk**: Stocks are considered a higher-risk investment because the value of the company can fluctuate greatly, and you may lose some or all of your investment.\n3. **Potential for growth**: Stocks have the potential for long-term growth, as the company's value can increase over time.\n4. **Dividends**: Many companies pay dividends to their shareholders, which is a portion of the company's profits.\n5. **Voting rights**: As a shareholder, you may have the right to vote on certain company matters, such as electing the board of directors.\n\n**Bonds:**\n\n1. **Debt**: When you buy a bond, you're essentially lending money to a borrower (typically a corporation or government entity).\n2. **Fixed income**: Bonds offer a fixed rate of return, known as the coupon rate, which is usually paid periodically (e.g., semi-annually or",
+      "latency_s": 7.64
+    },
+    {
+      "prompt": "Describe the water cycle in three steps.",
+      "completion": "Here are the three main steps of the water cycle:\n\n**Step 1: Evaporation**\nWater from the Earth's surface, such as oceans, lakes, rivers, and the ground, evaporates into the air as water vapor. This process occurs when the water is heated by the sun's energy, causing it to change from a liquid to a gas. Evaporation also occurs from plants and animals, as well as from the human body.\n\n**Step 2: Condensation**\nAs water vapor rises into the air, it cools down and condenses into tiny droplets, forming clouds, fog, or mist. This process is called condensation. The condensed water droplets in the clouds combine to form larger droplets, which can grow heavy enough to fall to the ground as precipitation (rain, snow, sleet, or hail).\n\n**Step 3: Precipitation and Runoff**\nWhen the water droplets in the clouds become too heavy to remain suspended in the air, they fall to the ground as precipitation. Once the precipitation reaches the ground, it can flow over the surface as runoff, forming streams, rivers, and lakes. Some of the precipitation also seeps into the soil, recharging groundwater aquifers and eventually feeding plants and animals. The",
+      "latency_s": 7.43
+    },
+    {
+      "prompt": "Write a tagline for a coffee shop called 'Grind House'.",
+      "completion": "I love it! Here are a few tagline options for Grind House:\n\n1. \"Where every sip is a grind\"\n2. \"Fuel your day, one cup at a time\"\n3. \"Grind, brew, repeat: the daily grind\"\n4. \"A grind above the rest\"\n5. \"Where the grind never gets old\"\n6. \"Brewing up a good time, one grind at a time\"\n7. \"The grind is always on\"\n8. \"Grind House: where the coffee is always fresh, and the vibes are always grindin'\"\n9. \"Get your grind on\"\n10. \"The perfect grind, every time\"\n\nWhich one do you like best?",
+      "latency_s": 4.24
+    },
+    {
+      "prompt": "What are the pros and cons of remote work?",
+      "completion": "Remote work, also known as telecommuting or working from home, has both advantages and disadvantages. Here are some of the main pros and cons:\n\n**Pros:**\n\n1. **Flexibility and autonomy**: Remote workers can create their own schedule and work environment, which can lead to increased productivity and job satisfaction.\n2. **Reduced commuting time and expenses**: No need to spend time and money on daily commutes, which can be a significant cost savings.\n3. **Improved work-life balance**: With the flexibility to work from anywhere, remote workers can more easily balance their work and personal life.\n4. **Increased job opportunities**: Remote work can open up job opportunities that may not be available in a specific geographic location.\n5. **Less distractions**: Depending on the individual, remote work can be less distracting than a traditional office environment.\n6. **Cost savings for employers**: Employers can save on office space, utilities, and other overhead costs.\n7. **Environmentally friendly**: Remote work can reduce carbon emissions and contribute to a more sustainable future.\n8. **Access to global talent**: Remote work can allow companies to hire the best talent from all over the world, rather than being limited to a specific geographic location.\n\n**Cons:**\n\n1. **Social isolation",
+      "latency_s": 7.54
+    },
+    {
+      "prompt": "Explain how a bill becomes a law in the United States.",
+      "completion": "The process of how a bill becomes a law in the United States is as follows:\n\n**Step 1: Introduction**\n\nA member of Congress introduces a bill in either the House of Representatives or the Senate. The bill is typically written in response to a specific problem or issue that the member wants to address.\n\n**Step 2: Referral**\n\nThe bill is referred to a committee, which is a group of members of Congress who specialize in a particular area of policy. The committee reviews the bill and may hold hearings to gather more information.\n\n**Step 3: Mark-up**\n\nThe committee may make changes to the bill, known as mark-ups, before sending it back to the full chamber for consideration.\n\n**Step 4: Voting**\n\nThe bill is then voted on by the full chamber where it was introduced. If it passes, it is sent to the other chamber (e.g. from the House to the Senate, or vice versa).\n\n**Step 5: Conference Committee**\n\nIf the bill passes in both chambers but is not identical, a conference committee is formed to iron out the differences. The conference committee is made up of members from both chambers.\n\n**Step 6: Final Vote**\n\nThe bill is then voted on again by both chambers. If it passes, it",
+      "latency_s": 7.42
+    },
+    {
+      "prompt": "Write a short bedtime story about a brave mouse.",
+      "completion": "Once upon a time, in a cozy little hole in the wall of a big, old house, there lived a tiny mouse named Max. Max was a brave mouse, with shiny brown fur and bright, curious eyes. He loved to explore the nooks and crannies of the house, sniffing out hidden treasures and making friends with the other creatures who lived there.\n\nOne night, as the moon was full and the house was quiet, Max heard a faint cry for help. It was coming from the attic, where the old trunks and boxes were stored. Max's ears perked up, and he scurried up the stairs to investigate.\n\nAs he reached the attic, he saw a family of field mice, trapped in a old, rusty trunk. The trunk was locked, and the mice were frantically scratching and squeaking to get out. Max knew he had to act fast.\n\nWithout hesitation, Max scurried over to the trunk and began to gnaw at the rusty lock. It was hard work, but Max was determined. He gnawed and gnawed, his tiny teeth working tirelessly until... click! The lock opened, and the field mice tumbled out, grateful and relieved.\n\nThe field mice thanked Max for his bravery, and asked",
+      "latency_s": 7.52
+    },
+    {
+      "prompt": "What is the significance of the Rosetta Stone?",
+      "completion": "The Rosetta Stone is a significant archaeological artifact that has had a profound impact on the field of Egyptology and the deciphering of ancient languages. Here are some of the key reasons why the Rosetta Stone is so important:\n\n1. **Deciphering of Hieroglyphics**: The Rosetta Stone is a decree issued by Egyptian pharaoh Ptolemy V in 196 BC, written in three languages: ancient Greek, demotic script (a form of ancient Egyptian writing), and hieroglyphics. The stone was discovered in 1799, and the deciphering of hieroglyphics was a major challenge for scholars. The Rosetta Stone provided the key to deciphering hieroglyphics, as the Greek text was already known, allowing scholars to compare it with the hieroglyphic text and eventually crack the code.\n2. **Understanding Ancient Egyptian Language and Culture**: The Rosetta Stone is a window into ancient Egyptian language, culture, and society. The decree it contains provides valuable information about the pharaoh, the Egyptian government, and the people of the time. It has helped scholars understand the daily life, customs, and beliefs of ancient Egyptians.\n3. **Egyptian History**: The Rosetta Stone is a significant artifact in the history of",
+      "latency_s": 7.63
+    },
+    {
+      "prompt": "Give three tips for improving sleep quality.",
+      "completion": "Here are three tips for improving sleep quality:\n\n1. **Establish a Consistent Sleep Schedule**: Go to bed and wake up at the same time every day, including weekends. This helps regulate your body's internal clock and can improve the quality of your sleep. Aim for 7-9 hours of sleep each night.\n2. **Create a Sleep-Conducive Environment**: Make your bedroom a sleep haven by ensuring it is dark, quiet, and cool. Consider using blackout curtains, earplugs, or a white noise machine if necessary. Invest in a comfortable mattress and pillows, and consider using a sleep mask or earplugs if you're a light sleeper. Avoid screens (e.g., phones, tablets, or laptops) for at least an hour before bedtime, as the blue light they emit can interfere with your sleep.\n3. **Wind Down Before Bedtime**: Develop a relaxing bedtime routine to signal to your body that it's time to sleep. This can include activities like reading a book, taking a warm bath, practicing gentle stretches, or listening to calming music. Avoid stimulating activities like exercise, watching TV, or engaging in intense conversations before bedtime, as they can interfere with your ability to fall asleep.\n\nRemember, it may take some experimentation to find the right",
+      "latency_s": 7.53
+    },
+    {
+      "prompt": "Explain the concept of compound interest with an example.",
+      "completion": "Compound interest is the concept of earning interest on both the principal amount and any accrued interest over time. It's a powerful financial concept that can help your savings grow exponentially over time.\n\nHere's an example to illustrate the concept:\n\nLet's say you deposit $1,000 into a savings account that earns a 5% annual interest rate, compounded annually.\n\nYear 1:\nInterest earned = $1,000 x 5% = $50\nBalance at the end of Year 1 = $1,000 + $50 = $1,050\n\nYear 2:\nInterest earned = $1,050 x 5% = $52.50 (note the interest is calculated on the new balance of $1,050, not just the original $1,000)\nBalance at the end of Year 2 = $1,050 + $52.50 = $1,102.50\n\nAs you can see, the interest earned in Year 2 is greater than the interest earned in Year 1, even though the interest rate remains the same. This is because the interest earned in Year 1 is added to the principal, so that the interest earned in Year 2 is calculated on a larger amount.\n\nThis process continues year after year, with the",
+      "latency_s": 7.5
+    },
+    {
+      "prompt": "Write a one-paragraph review of a fictional restaurant.",
+      "completion": "I had the pleasure of dining at Bistro Bliss, a charming French-inspired eatery tucked away in the heart of the city. From the moment I stepped inside, I was enveloped in a warm and inviting atmosphere, complete with soft lighting, rich wood accents, and the soothing sounds of jazz music. The service was top-notch, with our server expertly guiding us through the menu and making thoughtful recommendations. The food, of course, was the real star of the show - I opted for the pan-seared duck breast, which was cooked to perfection and served with a rich cherry compote that added a depth of flavor I hadn't experienced in a long time. The portion was generous, and I left feeling satisfied but not stuffed. Overall, Bistro Bliss is a must-visit for anyone looking for a romantic evening out or a special occasion dinner - it's a true gem in the culinary scene.",
+      "latency_s": 5.39
+    }
+  ],
+  "deterministic": [
+    {
+      "prompt": "What is 17 + 26?",
+      "expected_answer": "43",
+      "completion": "The answer to 17 + 26 is 43.",
+      "latency_s": 0.41
+    },
+    {
+      "prompt": "What is 144 divided by 12?",
+      "expected_answer": "12",
+      "completion": "144 divided by 12 is 12.",
+      "latency_s": 0.32
+    },
+    {
+      "prompt": "What is the capital of France?",
+      "expected_answer": "Paris",
+      "completion": "The capital of France is Paris.",
+      "latency_s": 0.27
+    },
+    {
+      "prompt": "What is the chemical symbol for gold?",
+      "expected_answer": "Au",
+      "completion": "The chemical symbol for gold is Au.",
+      "latency_s": 0.3
+    },
+    {
+      "prompt": "How many continents are there on Earth?",
+      "expected_answer": "7",
+      "completion": "There are 7 continents on Earth, which are:\n\n1. Africa\n2. Antarctica\n3. Asia\n4. Australia\n5. Europe\n6. North America\n7. South America\n\nNote that some sources may group Europe and Asia together as a single continent, Eurasia, or combine North and South America as the American continent. However, the 7-continent model is the most commonly used and accepted classification.",
+      "latency_s": 2.59
+    },
+    {
+      "prompt": "What is 9 multiplied by 8?",
+      "expected_answer": "72",
+      "completion": "9 multiplied by 8 is 72.",
+      "latency_s": 0.33
+    },
+    {
+      "prompt": "What is the boiling point of water in Celsius at sea level?",
+      "expected_answer": "100",
+      "completion": "The boiling point of water at sea level is 100 degrees Celsius (\u00b0C).",
+      "latency_s": 0.57
+    },
+    {
+      "prompt": "Who wrote the play Romeo and Juliet?",
+      "expected_answer": "William Shakespeare",
+      "completion": "The play \"Romeo and Juliet\" was written by the English playwright and poet William Shakespeare. It is one of his most famous and enduring works, and is considered one of the greatest tragedies of all time. The play was written around 1595-1596 and has since been translated into many languages and adapted into numerous stage and film productions.",
+      "latency_s": 2.11
+    },
+    {
+      "prompt": "What is the square root of 81?",
+      "expected_answer": "9",
+      "completion": "The square root of 81 is 9.",
+      "latency_s": 0.35
+    },
+    {
+      "prompt": "What planet is known as the Red Planet?",
+      "expected_answer": "Mars",
+      "completion": "The planet known as the Red Planet is Mars.",
+      "latency_s": 0.35
+    }
+  ]
+}
