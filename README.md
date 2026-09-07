@@ -30,6 +30,11 @@ This resolves Stage 4's open question: forcing both engines onto FlashInfer on A
 2. Triton's CUDA driver JIT needs a C compiler and Python headers neither present by default: `sudo apt-get install -y build-essential python3.10-dev`.
 3. `nvcc` isn't on `PATH` and there's no `/usr/local/cuda` — it ships inside the venv via the `nvidia-cuda-nvcc` pip package. Set `CUDA_HOME=<venv>/lib/python3.10/site-packages/nvidia/cu13` and add `$CUDA_HOME/bin` to `PATH` before launching.
 4. Even with `CUDA_HOME` set, FlashInfer's own JIT-compiled top-k/top-p sampling kernel fails to build against this environment's CUDA headers (`"CUDA compiler and CUDA toolkit headers are incompatible"` from its bundled `cccl`/`libcudacxx`). Rather than chase that compiler-version skew further, set `VLLM_USE_FLASHINFER_SAMPLER=0` to fall back to vLLM's native sampler — this is what actually got the server serving.
+5. SGLang hits the same CTK-compatibility `#error`, but here it's in the actual attention kernel (`batch_prefill_with_kv_cache...`), not an optional sampler — no env var dodges it. `cuda_toolkit.h` has a documented escape hatch for exactly this ("users might want to use a newer CTK than the compiler ships"): define `CCCL_DISABLE_CTK_COMPATIBILITY_CHECK` before its `#ifndef` guard, in both venvs' copies of the header.
+6. After that, linking still fails: `-lcudart` isn't found. The pip `nvidia-cuda-nvcc` package ships `libcudart.so.13` under `nvidia/cu13/lib` (not `lib64`, which is what the JIT build's `-L` flag points at), with no unversioned `.so` symlink. Fix: `ln -s lib lib64` and `ln -s libcudart.so.13 libcudart.so` inside `nvidia/cu13/`, in both venvs.
+7. SGLang's copy of `flashinfer/comm/fd_exchange.py` (flashinfer 0.6.17) already had the `array.array[int]` bug (#1) fixed upstream — don't reapply that patch there, only vLLM's flashinfer 0.6.16.post3 needs it.
+
+None of these are specific to this project's methodology — they're just what it takes to get vLLM 0.27.1 and SGLang 0.5.18 running on a bare pip venv on a fresh cloud GPU image in September 2026. Worth a line in the write-up as its own small finding.
 
 **Environment split:** vLLM and SGLang can't share one Python environment — `pip` hard-conflicts on `flashinfer-python` (vLLM 0.27.1 pins `==0.6.16.post3`, SGLang 0.5.18 pins `==0.6.17`). Each engine lives in its own venv (`~/venv-vllm`, `~/venv-sglang`). Downstream effect for Stage 4: after forcing both onto "FlashInfer," the underlying FlashInfer *library version* still differs by one patch release between engines — a real variable, not assumed away. Note it in the write-up; don't chase it as the cause unless the Stage 4 result looks inconsistent with the attention-kernel-selection story.
 
@@ -40,13 +45,13 @@ This resolves Stage 4's open question: forcing both engines onto FlashInfer on A
   - Provider listing risk: some GPU broker listings (e.g. Brev/Hyperstack) are marked pre-release, **cannot be stopped or restarted**, and **delete all instance data irrecoverably** if the org runs out of credits. Check listing details before committing — prefer a stable listing at comparable price if one exists.
   - Disk storage is typically bundled and fixed at this GPU tier (e.g. 850GB SSD, included in the hourly rate) — not a separate sizing decision, and comfortably more than the checkpoint (~16GB) plus trace files need.
 
-- [ ] **Stage 0 — Environment.** First command after SSH, before installing anything: verify `nsys` perf-counter access — some cloud GPU images restrict the counters Nsight Systems needs. On an instance with no stop/restart, a failure caught later means spinning up a fresh instance, not fixing this one in place.
-  - Install vLLM 0.27.1 and SGLang 0.5.18 (see Pinned versions) against the same checkpoint, bf16 precision, chat template, and stop tokens. Serve identical prompts through each at greedy decoding (temperature 0).
+- [x] **Stage 0 — Environment.** Done 2026-09-07. Both engines installed (separate venvs), driver/CUDA confirmed (595.71.05 / CUDA 13.2), seven environment fixes applied (see Pinned versions), both servers boot and answer requests.
   - Prompt sets: `bench/prompts_sanity.json` (20 diverse prompts) and `bench/prompts_deterministic.json` (10 arithmetic/single-fact prompts with `expected_answer`).
-  - Pass criteria:
-    - *Not required:* bit-identical token IDs — bf16 plus two different attention kernels and sampling code paths guarantees drift under floating-point non-associativity. Record the observed match rate as a baseline, don't gate on it.
-    - *Hard fail:* garbage on either engine (empty completion, repetition loop, mid-word truncation) on any prompt in `prompts_sanity.json`.
-    - *Hard fail:* on any prompt in `prompts_deterministic.json`, the two engines disagree on the *answer* — that's a chat-template/tokenizer/stop-token bug, not float drift, and it's not safe to profile through.
+  - Pass criteria — **all passed**:
+    - Hard fail (garbage on sanity prompts): **PASS**, neither engine produced garbage across all 20.
+    - Hard fail (deterministic-answer agreement): **PASS**, both engines got all 10 right.
+    - Baseline (not gated): **8/20** sanity completions were exact string matches between engines — real observed drift under bf16 + different kernels, not required to be higher.
+  - Results: `results/vllm_stage0_completions.json`, `results/sglang_stage0_completions.json`. Reproduce with `bench/gen_completions.py --engine {vllm,sglang} --port <port>` against a running server, then `bench/compare_stage0.py`.
 
 - [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench_serving`, SGLang's equivalent), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
   - Coarse pass, per engine: wide log-spaced grid (e.g. 1, 2, 4, 8, 16, 32, 64 req/s) run independently on each engine to find roughly where its throughput plateaus / p99 inflects. Don't assume the knees line up.
