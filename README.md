@@ -25,6 +25,12 @@ Model checkpoints/weights are not committed here (re-downloadable, not the artif
 
 This resolves Stage 4's open question: forcing both engines onto FlashInfer on A100 is confirmed toggleable, not just planned — SGLang needs no change, vLLM needs the env var above.
 
+**Environment fixes needed to actually boot vLLM on this GCP image** (Ubuntu 22.04, driver 595.71.05 / CUDA 13.2, pip-only CUDA toolkit via `nvidia-cuda-nvcc`, no system `/usr/local/cuda`):
+1. `flashinfer_python==0.6.16.post3` has a real import-time bug: `flashinfer/comm/fd_exchange.py` type-hints a function return with `array.array[int]`, which isn't runtime-subscriptable and throws `TypeError: 'type' object is not subscriptable` on import. This import is unconditional in vLLM's startup kernel-warmup path (triggered via an unrelated MiniMax-M3 warmup import), so it can't be dodged with `--enforce-eager` or backend flags. Fix: patch the file to add `from __future__ import annotations` as its first line, which makes all annotations lazy. Not our bug — a real upstream compatibility issue in that flashinfer patch release.
+2. Triton's CUDA driver JIT needs a C compiler and Python headers neither present by default: `sudo apt-get install -y build-essential python3.10-dev`.
+3. `nvcc` isn't on `PATH` and there's no `/usr/local/cuda` — it ships inside the venv via the `nvidia-cuda-nvcc` pip package. Set `CUDA_HOME=<venv>/lib/python3.10/site-packages/nvidia/cu13` and add `$CUDA_HOME/bin` to `PATH` before launching.
+4. Even with `CUDA_HOME` set, FlashInfer's own JIT-compiled top-k/top-p sampling kernel fails to build against this environment's CUDA headers (`"CUDA compiler and CUDA toolkit headers are incompatible"` from its bundled `cccl`/`libcudacxx`). Rather than chase that compiler-version skew further, set `VLLM_USE_FLASHINFER_SAMPLER=0` to fall back to vLLM's native sampler — this is what actually got the server serving.
+
 **Environment split:** vLLM and SGLang can't share one Python environment — `pip` hard-conflicts on `flashinfer-python` (vLLM 0.27.1 pins `==0.6.16.post3`, SGLang 0.5.18 pins `==0.6.17`). Each engine lives in its own venv (`~/venv-vllm`, `~/venv-sglang`). Downstream effect for Stage 4: after forcing both onto "FlashInfer," the underlying FlashInfer *library version* still differs by one patch release between engines — a real variable, not assumed away. Note it in the write-up; don't chase it as the cause unless the Stage 4 result looks inconsistent with the attention-kernel-selection story.
 
 ## Plan
