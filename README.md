@@ -53,8 +53,9 @@ None of these are specific to this project's methodology — they're just what i
     - Baseline (not gated): **8/20** sanity completions were exact string matches between engines — real observed drift under bf16 + different kernels, not required to be higher.
   - Results: `results/vllm_stage0_completions.json`, `results/sglang_stage0_completions.json`. Reproduce with `bench/gen_completions.py --engine {vllm,sglang} --port <port>` against a running server, then `bench/compare_stage0.py`.
 
-- [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench_serving`, SGLang's equivalent), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
-  - Coarse pass, per engine: wide log-spaced grid (e.g. 1, 2, 4, 8, 16, 32, 64 req/s) run independently on each engine to find roughly where its throughput plateaus / p99 inflects. Don't assume the knees line up.
+- [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench serve`, `sglang.bench_serving`), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
+  - Fixed length: 512 input / 128 output tokens, via `--dataset-name random --random-range-ratio 0` on both clients (exact length every request, not sampled around a mean). `bench/sweep_coarse.sh <vllm|sglang> <port>` runs it — `num_prompts = max(200, 60*rate)` per point.
+  - Coarse pass, per engine: wide log-spaced grid (1, 2, 4, 8, 16, 32, 64 req/s) run independently on each engine to find roughly where its throughput plateaus / p99 inflects. Don't assume the knees line up.
   - Fine pass, both engines together: shared finer-grained range bracketing the union of both knees (~0.5x the lower knee to 1.5x the higher one, ~8-10 points), run on both engines at the same rates.
   - Don't open a profiler until this chart shows something worth explaining.
 
