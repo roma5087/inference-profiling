@@ -28,6 +28,7 @@ for RATE in "${RATES[@]}"; do
       --request-rate "$RATE" \
       --num-prompts "$NUM_PROMPTS" \
       --seed 0 \
+      --temperature 0 \
       --save-result --save-detailed \
       --result-dir "$OUTDIR" \
       --result-filename "rate_${RATE}.json"
@@ -43,6 +44,7 @@ for RATE in "${RATES[@]}"; do
       --request-rate "$RATE" \
       --num-prompts "$NUM_PROMPTS" \
       --seed 0 \
+      --temperature 0 \
       --output-file "$OUTDIR/rate_${RATE}.json" \
       --output-details
   else
