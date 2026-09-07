@@ -66,9 +66,21 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
 
 - [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench serve`, `sglang.bench_serving`), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
   - Fixed length: 512 input / 128 output tokens, via `--dataset-name random --random-range-ratio 0` on both clients (exact length every request, not sampled around a mean). `bench/sweep_coarse.sh <vllm|sglang> <port>` runs it — `num_prompts = max(200, 60*rate)` per point.
-  - Coarse pass, per engine: wide log-spaced grid (1, 2, 4, 8, 16, 32, 64 req/s) run independently on each engine to find roughly where its throughput plateaus / p99 inflects. Don't assume the knees line up.
-  - Fine pass, both engines together: shared finer-grained range bracketing the union of both knees (~0.5x the lower knee to 1.5x the higher one, ~8-10 points), run on both engines at the same rates.
-  - Don't open a profiler until this chart shows something worth explaining.
+  - [x] **Coarse pass — done 2026-09-07.** Wide log-spaced grid (1, 2, 4, 8, 16, 32, 64 req/s), independently per engine. Results: `results/stage1_coarse/{vllm,sglang}/rate_*.json`.
+
+    | rate | vLLM throughput | vLLM failed | vLLM p99 TTFT | SGLang throughput | SGLang failed | SGLang p99 TTFT |
+    |---|---|---|---|---|---|---|
+    | 1 | 0.99 | 0 | 0.09s | 1.02 | 0 | 0.08s |
+    | 2 | 1.97 | 0 | 0.05s | 2.03 | 0 | 0.10s |
+    | 4 | 3.90 | 0 | 0.10s | 3.76 | 0 | 0.11s |
+    | 8 | 7.81 | 0 | 0.18s | 8.01 | 0 | 0.12s |
+    | 16 | 15.41 | 0 | 0.37s | 14.41 | 0 | 0.14s |
+    | 32 | **17.13** | **90** | **44.0s** | 29.81 | 0 | 0.21s |
+    | 64 | 17.55 | 1980 | 43.8s | **43.68** | 0 | **16.2s** |
+
+    **Finding:** both engines track requested rate near-perfectly through 16 req/s. vLLM's ceiling is ~17 req/s — past it, throughput flatlines and it starts **hard-failing requests** (90 at rate 32, 1980 of 3840 at rate 64). SGLang's ceiling is meaningfully higher (still scaling to ~44 req/s achieved at rate 64) and it **never hard-fails a request** at any rate tested — it degrades via latency instead (p99 TTFT 0.21s→16.2s, p99 ITL 461ms→1949ms between rate 32 and 64). Different overload behavior, not just a different number — a real candidate for Stage 2-4, not just a scheduler-detail difference.
+  - Fine pass, both engines together: shared finer-grained range bracketing the union of both knees — vLLM's (~16-32) and SGLang's (~32-64, likely 40-55 based on where p99 TTFT breaks) — so roughly 8 to 72 req/s, ~8-10 points. Not yet run.
+  - Don't open a profiler until this chart shows something worth explaining. *(It does now.)*
 
 - [ ] **Stage 2 — Nsight Systems pass.** Capture `nsys` traces for both engines under the load from Stage 1. Catalog kernel names, idle gaps, CPU<->GPU overlap — inventory, don't chase yet.
 
