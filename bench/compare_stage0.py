@@ -15,20 +15,40 @@ def load(engine):
 
 
 def looks_like_garbage(text):
+    """Detect empty output or an n-gram (n=1..8 words) repeated 3x back-to-back.
+
+    Catches both single-token stutters (n=1, e.g. "the the the...") and
+    repeated-phrase degeneration (n>1, e.g. "I'm sorry I cannot help. I'm
+    sorry I cannot help. I'm sorry I cannot help."), which a trigram-only
+    check misses entirely since it requires 5 identical consecutive words.
+    """
     if not text or not text.strip():
         return "empty completion"
     words = text.split()
-    if len(words) >= 8:
-        # crude repetition-loop detector: same trigram repeated back-to-back
-        trigrams = [" ".join(words[i:i + 3]) for i in range(len(words) - 2)]
-        for i in range(len(trigrams) - 3):
-            if trigrams[i] == trigrams[i + 1] == trigrams[i + 2]:
-                return f"repetition loop around: {trigrams[i]!r}"
+    for n in range(1, 9):
+        if len(words) < n * 3:
+            continue
+        for i in range(len(words) - n * 3 + 1):
+            a, b, c = words[i:i + n], words[i + n:i + 2 * n], words[i + 2 * n:i + 3 * n]
+            if a == b == c:
+                return f"repetition loop (n={n}) around: {' '.join(a)!r}"
     return None
 
 
 def normalize(s):
     return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+def contains_answer(expected, completion):
+    """Word-boundary containment: expected's words must appear as a contiguous
+    token sequence in completion's tokens. A bare substring check would let
+    expected='9' match inside completion tokens like '19' or '90'."""
+    exp_words = normalize(expected).split()
+    comp_words = normalize(completion).split()
+    n = len(exp_words)
+    if n == 0:
+        return False
+    return any(comp_words[i:i + n] == exp_words for i in range(len(comp_words) - n + 1))
 
 
 def main():
@@ -57,9 +77,9 @@ def main():
     det_fail = False
     for prompt, v_item in v_det.items():
         s_item = s_det.get(prompt)
-        expected = normalize(v_item["expected_answer"])
-        v_has = expected in normalize(v_item["completion"])
-        s_has = expected in normalize(s_item["completion"]) if s_item else False
+        expected = v_item["expected_answer"]
+        v_has = contains_answer(expected, v_item["completion"])
+        s_has = contains_answer(expected, s_item["completion"]) if s_item else False
         status = "OK" if (v_has and s_has) else "CHECK"
         if not (v_has and s_has):
             det_fail = True
