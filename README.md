@@ -76,25 +76,25 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
 
   **Memory/batching parity** (checked so a memory-budget asymmetry can't be an unstated confound): vLLM's KV cache (470,912 tokens, `gpu_memory_utilization=0.92`, `enable_chunked_prefill=True`) is *larger* than SGLang's (412,646 tokens, `mem_fraction_static=0.83`, `chunked_prefill_size=8192`) — not a memory asymmetry favoring either side.
 
-  - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine, first-pass numbers, superseded by the fine pass below) — `results/stage1_coarse/{vllm,sglang}/`.
-  - **Fine pass, corrected** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines, `ulimit -n 65536`, per-rate seeds) — `results/stage1_fine/{vllm,sglang}/`:
+  - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine, first-pass numbers on vLLM 0.27.1/SGLang 0.5.18, superseded below) — `results/stage1_coarse/{vllm,sglang}/`.
+  - **Fine pass, corrected and re-validated on upgraded versions** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines, `ulimit -n 65536`, per-rate seeds) — `results/stage1_fine/{vllm,sglang}/`. Run twice: once corrected on vLLM 0.27.1/SGLang 0.5.18, once more after upgrading to vLLM 0.28.0/SGLang 0.5.19 (current pinned versions, see Pinned versions table) to confirm the finding isn't tied to a specific release:
 
-    | rate | vLLM throughput | vLLM p99 TTFT | SGLang throughput | SGLang p99 TTFT |
+    | rate | vLLM 0.28.0 throughput | vLLM p99 TTFT | SGLang 0.5.19 throughput | SGLang p99 TTFT |
     |---|---|---|---|---|
-    | 8 | 7.79 | 0.18s | 7.44 | 0.10s |
-    | 12 | 11.68 | 0.25s | 11.43 | 0.11s |
-    | 16 | 15.32 | 0.54s | 14.91 | 0.13s |
-    | 20 | 16.09 | **11.81s** | 19.21 | 0.16s |
-    | 24 | 16.35 | 24.98s | 23.54 | 0.19s |
-    | 32 | 17.06 | 49.35s | 30.21 | 0.26s |
-    | 40 | 17.23 | 76.16s | 35.00 | 0.51s |
-    | 48 | 17.24 | 103.58s | 38.87 | **4.38s** |
-    | 56 | 17.24 | 129.08s | 41.01 | 11.13s |
-    | 64 | 17.32 | 156.69s | 42.44 | 18.82s |
+    | 8 | 7.79 | 0.18s | 7.45 | 0.11s |
+    | 12 | 11.68 | 0.23s | 11.43 | 0.11s |
+    | 16 | 15.35 | 0.50s | 14.91 | 0.13s |
+    | 20 | 16.23 | **11.07s** | 19.21 | 0.16s |
+    | 24 | 16.63 | 23.56s | 23.52 | 0.18s |
+    | 32 | 17.26 | 48.12s | 30.21 | 0.26s |
+    | 40 | 17.46 | 74.41s | 35.13 | 0.52s |
+    | 48 | 17.52 | 101.02s | 39.33 | **4.10s** |
+    | 56 | 17.52 | 126.09s | 41.58 | 10.43s |
+    | 64 | 17.59 | 153.31s | 43.06 | 18.27s |
 
-    **Zero failed requests / zero errors for both engines at every single rate point** — this is the corrected picture, and it changes the finding's shape from the first pass: **both engines fail the same way** (they queue and let latency grow, never reject a request outright) — there is no "hard rejection vs. graceful degradation" split. What's real and survives correction: **vLLM's knee is between rate 16 and 20** (p99 TTFT 0.54s→11.8s), **SGLang's knee is between rate 40 and 48** (p99 TTFT 0.51s→4.4s) — a **~2.4x higher throughput ceiling**, essentially unchanged from the (buggy) first pass. The tail latency at high rates is *worse* than first measured, not better — the old numbers looked capped at ~44s because the client was silently dropping stragglers as "failed" instead of waiting for them; the true p99 TTFT at rate 64 is 156.7s for vLLM once nothing is being dropped.
+    **Zero failed requests / zero errors for both engines at every rate point, on both version pairs.** The version upgrade (0.27.1→0.28.0, 0.5.18→0.5.19) changed nothing meaningful — every number above is within noise of the pre-upgrade corrected run. **Both engines fail the same way** (queue and let latency grow, never reject a request outright) — there is no "hard rejection vs. graceful degradation" split. What's real, and now confirmed stable across two version pairs: **vLLM's knee is between rate 16 and 20** (p99 TTFT ~0.5s→~11-12s), **SGLang's knee is between rate 40 and 48** (p99 TTFT ~0.5s→~4.1-4.4s) — a **~2.4x higher throughput ceiling**.
 
-    **This is the gap Stages 2-4 need to explain**: a ~2.4x throughput-ceiling difference between two engines with the same overload behavior (queue, don't reject), on identical hardware, workload, and precision.
+    **This is the gap Stages 2-4 need to explain**: a ~2.4x throughput-ceiling difference between two engines with the same overload behavior (queue, don't reject), on identical hardware, workload, and precision — reproduced across two independent version pairs of each engine.
   - Don't open a profiler until this chart shows something worth explaining. *(It does.)*
 
 - [ ] **Stage 2 — Nsight Systems pass.** Capture `nsys` traces for both engines under the load from Stage 1. Catalog kernel names, idle gaps, CPU<->GPU overlap — inventory, don't chase yet.
