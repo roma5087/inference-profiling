@@ -65,35 +65,33 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
     - Baseline (not gated): **8/20** sanity completions were exact string matches between engines — real observed drift under bf16 + different kernels, not required to be higher.
   - Results: `results/vllm_stage0_completions.json`, `results/sglang_stage0_completions.json`. Reproduce with `bench/gen_completions.py --engine {vllm,sglang} --port <port>` against a running server, then `bench/compare_stage0.py`.
 
-- [~] **Stage 1 — Black-box benchmark.** First pass done 2026-09-08; **correction in progress** after independent review caught two measurement bugs. Fixed length: 512 input / 128 output tokens (`--dataset-name random --random-range-ratio 0`), open-loop Poisson, `--temperature 0` on both clients.
+- [x] **Stage 1 — Black-box benchmark.** Done 2026-09-08, corrected after independent review caught two measurement bugs in the first pass.
 
-  **Two bugs found in the numbers below, being re-run:**
-  1. **vLLM's "failed" requests (rate ≥32 in the fine-pass table) are a client-side artifact, not a server behavior.** Every failure's error message is `OSError: [Errno 24] Too many open files` — `vllm bench serve`'s own aiohttp client ran out of file descriptors (hit the default 1024 `ulimit -n`) once backlog pushed concurrent in-flight requests past that ceiling. It never reached the server. SGLang's client hit 2127 concurrent requests with zero errors — the two clients weren't running under comparable limits, so "vLLM hard-fails, SGLang never fails" is not yet a trustworthy comparison. The TTFT-based knee (rate 16→20, `failed=0` at both points) is unaffected and stands.
-  2. **`--seed 0` was reused unchanged at every rate point**, against a server never restarted between points. Diffing outputs confirmed it: 90% of `rate_12`'s completions are byte-identical to `rate_8`'s. Since both engines have prefix/radix caching on by default, later (larger `num_prompts`) rate points were partially replaying earlier points' exact prompt content — a caching effect that could leak into throughput numbers as if it were a scheduling effect. Fixed in `sweep_coarse.sh`/`sweep_fine.sh`: `--seed "$RATE"` instead of a fixed value.
+  **Two bugs found and fixed:**
+  1. **vLLM's "failed" requests in the first pass were a client-side artifact, not a server behavior.** Every failure's error message was `OSError: [Errno 24] Too many open files` — `vllm bench serve`'s own aiohttp client ran out of file descriptors (hit the default 1024 `ulimit -n`) once backlog pushed concurrent in-flight requests past that ceiling. It never reached the server. Fixed: `ulimit -n 65536` before invoking either benchmark client (see script header comments).
+  2. **`--seed 0` was reused unchanged at every rate point** against a server never restarted between points — confirmed via diff that 90% of one rate's completions were byte-identical to another's, i.e. a caching effect was leaking into throughput numbers. Fixed: `--seed "$RATE"` in both sweep scripts.
 
-  Re-running the fine pass with `ulimit -n 65536` and per-rate seeds before trusting the table below.
+  **Memory/batching parity** (checked so a memory-budget asymmetry can't be an unstated confound): vLLM's KV cache (470,912 tokens, `gpu_memory_utilization=0.92`, `enable_chunked_prefill=True`) is *larger* than SGLang's (412,646 tokens, `mem_fraction_static=0.83`, `chunked_prefill_size=8192`) — not a memory asymmetry favoring either side.
 
-  **Memory/batching parity check (closes a question the ulimit fix raised — is either engine memory-starved relative to the other?):** vLLM's server log reports `Available KV cache memory: 57.48 GiB`, `GPU KV cache size: 470,912 tokens`, `gpu_memory_utilization=0.92` (default), `enable_chunked_prefill=True`, `enable_prefix_caching=True`. SGLang's `server_info` (captured in its own bench output) reports `mem_fraction_static=0.83`, `max_total_num_tokens=412646`, `chunked_prefill_size=8192`. vLLM's effective KV cache capacity (470,912 tokens) is *larger* than SGLang's (412,646), and both chunk prefill by default — not a memory-budget asymmetry favoring either side.
+  - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine, first-pass numbers, superseded by the fine pass below) — `results/stage1_coarse/{vllm,sglang}/`.
+  - **Fine pass, corrected** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines, `ulimit -n 65536`, per-rate seeds) — `results/stage1_fine/{vllm,sglang}/`:
 
-  - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine) — `results/stage1_coarse/{vllm,sglang}/`. First signal: vLLM ceiling ~17 req/s with hard failures past it; SGLang scales further and never hard-fails.
-  - **Fine pass** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines) — `results/stage1_fine/{vllm,sglang}/`. Resolved both knees precisely:
+    | rate | vLLM throughput | vLLM p99 TTFT | SGLang throughput | SGLang p99 TTFT |
+    |---|---|---|---|---|
+    | 8 | 7.79 | 0.18s | 7.44 | 0.10s |
+    | 12 | 11.68 | 0.25s | 11.43 | 0.11s |
+    | 16 | 15.32 | 0.54s | 14.91 | 0.13s |
+    | 20 | 16.09 | **11.81s** | 19.21 | 0.16s |
+    | 24 | 16.35 | 24.98s | 23.54 | 0.19s |
+    | 32 | 17.06 | 49.35s | 30.21 | 0.26s |
+    | 40 | 17.23 | 76.16s | 35.00 | 0.51s |
+    | 48 | 17.24 | 103.58s | 38.87 | **4.38s** |
+    | 56 | 17.24 | 129.08s | 41.01 | 11.13s |
+    | 64 | 17.32 | 156.69s | 42.44 | 18.82s |
 
-    | rate | vLLM throughput | vLLM failed | vLLM p99 TTFT | SGLang throughput | SGLang failed | SGLang p99 TTFT |
-    |---|---|---|---|---|---|---|
-    | 8 | 7.81 | 0 | 0.18s | 8.01 | 0 | 0.11s |
-    | 12 | 11.60 | 0 | 0.24s | 11.08 | 0 | 0.12s |
-    | 16 | 15.42 | 0 | 0.27s | 14.41 | 0 | 0.13s |
-    | 20 | 15.95 | 0 | **12.37s** | 18.37 | 0 | 0.13s |
-    | 24 | 16.46 | 0 | 24.32s | 22.21 | 0 | 0.14s |
-    | 32 | 17.01 | 101 | 44.42s | 29.93 | 0 | 0.23s |
-    | 40 | 17.14 | 570 | 44.44s | 35.37 | 0 | 0.51s |
-    | 48 | 17.28 | 1039 | 44.17s | 39.78 | 0 | **4.73s** |
-    | 56 | 17.34 | 1516 | 44.32s | 41.90 | 0 | 11.55s |
-    | 64 | 17.33 | 1994 | 44.40s | 43.40 | 0 | 17.38s |
+    **Zero failed requests / zero errors for both engines at every single rate point** — this is the corrected picture, and it changes the finding's shape from the first pass: **both engines fail the same way** (they queue and let latency grow, never reject a request outright) — there is no "hard rejection vs. graceful degradation" split. What's real and survives correction: **vLLM's knee is between rate 16 and 20** (p99 TTFT 0.54s→11.8s), **SGLang's knee is between rate 40 and 48** (p99 TTFT 0.51s→4.4s) — a **~2.4x higher throughput ceiling**, essentially unchanged from the (buggy) first pass. The tail latency at high rates is *worse* than first measured, not better — the old numbers looked capped at ~44s because the client was silently dropping stragglers as "failed" instead of waiting for them; the true p99 TTFT at rate 64 is 156.7s for vLLM once nothing is being dropped.
 
-    **vLLM's real knee is between rate 16 and 20** — p99 TTFT jumps from 0.27s to 12.4s in one step, then throughput hard-plateaus at ~17.3 req/s for every rate above that, with a growing count of outright request failures. **SGLang's knee is between rate 40 and 48** — p99 TTFT jumps from 0.51s to 4.7s — roughly **2.4x higher** than vLLM's, and throughput keeps climbing (not a hard plateau) even past its own knee, with zero request failures across the entire grid.
-
-    **This is the gap Stages 2-4 need to explain**, and it's not subtle: two qualitatively different failure modes (hard request rejection vs. graceful latency degradation) at meaningfully different throughput ceilings, on identical hardware, identical workload, identical precision.
+    **This is the gap Stages 2-4 need to explain**: a ~2.4x throughput-ceiling difference between two engines with the same overload behavior (queue, don't reject), on identical hardware, workload, and precision.
   - Don't open a profiler until this chart shows something worth explaining. *(It does.)*
 
 - [ ] **Stage 2 — Nsight Systems pass.** Capture `nsys` traces for both engines under the load from Stage 1. Catalog kernel names, idle gaps, CPU<->GPU overlap — inventory, don't chase yet.
