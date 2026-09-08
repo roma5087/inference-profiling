@@ -21,8 +21,11 @@ Model checkpoints/weights are not committed here (re-downloadable, not the artif
 
 | Package | Version | Notes |
 |---|---|---|
-| vLLM | 0.27.1 | A100 default attention backend is not FlashInfer, but `VLLM_ATTENTION_BACKEND=FLASHINFER` forces it (FlashInfer supports SM80/A100). |
-| SGLang | 0.5.18 | Already defaults to FlashInfer on non-Hopper GPUs, including A100. |
+| vLLM | 0.28.0 (upgraded 2026-09-08 from 0.27.1) | A100 default attention backend is not FlashInfer, but `VLLM_ATTENTION_BACKEND=FLASHINFER` forces it (FlashInfer supports SM80/A100). Still pins `flashinfer-python==0.6.16.post3` (unchanged) — existing patches applied without modification. |
+| SGLang | 0.5.19 (upgraded 2026-09-08 from 0.5.18) | Already defaults to FlashInfer on non-Hopper GPUs, including A100. Its `flashinfer-python` pin moved 0.6.17→0.6.18 as part of this bump. |
+| Nsight Systems | 2026.1.3 (upgraded 2026-09-08 from a stale apt default of 2021.3, which predates this driver/CUDA generation) | Installed via NVIDIA's own CUDA apt repo (`cuda-nsight-systems-13-3`), not Ubuntu's default repo. |
+
+**Patch fragility across version bumps** — worth knowing before any future upgrade: SGLang's `flashinfer-python` version bump (0.6.17→0.6.18) triggered a fresh package install, which **silently reverted the CTK-compatibility-check patch** (fix #5 below) since that patch lives inside the flashinfer package's own files, not in a venv-level location a version bump would leave alone. The `array.array[int]` fix (#1) happened to still be unnecessary in 0.6.18 (upstream already carries it, same as 0.6.17), and the `lib64` symlink (#6) survived because it's outside any Python package's file tree. **Lesson: after any `pip install --upgrade` touching `flashinfer-python` (directly or transitively), re-verify fixes #1 and #5 specifically — they're the two that live inside package files pip will overwrite.**
 
 This resolves Stage 4's open question: forcing both engines onto FlashInfer on A100 is confirmed toggleable, not just planned — SGLang needs no change, vLLM needs the env var above.
 
