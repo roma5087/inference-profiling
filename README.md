@@ -73,6 +73,8 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
 
   Re-running the fine pass with `ulimit -n 65536` and per-rate seeds before trusting the table below.
 
+  **Memory/batching parity check (closes a question the ulimit fix raised — is either engine memory-starved relative to the other?):** vLLM's server log reports `Available KV cache memory: 57.48 GiB`, `GPU KV cache size: 470,912 tokens`, `gpu_memory_utilization=0.92` (default), `enable_chunked_prefill=True`, `enable_prefix_caching=True`. SGLang's `server_info` (captured in its own bench output) reports `mem_fraction_static=0.83`, `max_total_num_tokens=412646`, `chunked_prefill_size=8192`. vLLM's effective KV cache capacity (470,912 tokens) is *larger* than SGLang's (412,646), and both chunk prefill by default — not a memory-budget asymmetry favoring either side.
+
   - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine) — `results/stage1_coarse/{vllm,sglang}/`. First signal: vLLM ceiling ~17 req/s with hard failures past it; SGLang scales further and never hard-fails.
   - **Fine pass** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines) — `results/stage1_fine/{vllm,sglang}/`. Resolved both knees precisely:
 
