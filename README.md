@@ -13,6 +13,7 @@ number — what causes it.
 | GPU | A100 / H100 80GB | Keeps an 8B model off the memory-bandwidth wall, so a gap is more likely to surface as scheduling / kernel-launch overhead rather than disappearing into a shared bandwidth floor. |
 | Topology | 1x GPU | Isolates scheduler and kernel differences before NCCL and cross-device traffic enter the trace. |
 | Prompt shape | fixed length (Stage 1 baseline) | Keeps nsys traces readable on the first pass. A ShareGPT-style distribution comes later as a robustness check, not primary evidence. |
+| Engine execution | sequential, never concurrent | Both engines share the single GPU's SMs and memory bandwidth. Running them at the same time would make each engine's measured throughput depend on how much of the card the *other* engine happened to be using at that instant — an uncontrolled confound neither Stage 1's numbers nor Stage 2's traces could untangle. One engine fully owns the GPU for its entire sweep before the other starts. |
 
 Model checkpoints/weights are not committed here (re-downloadable, not the artifact) — see `.gitignore`. Everything else — scripts, configs, traces, parsed results, the write-up — lives in this repo.
 
@@ -64,7 +65,13 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
     - Baseline (not gated): **8/20** sanity completions were exact string matches between engines — real observed drift under bf16 + different kernels, not required to be higher.
   - Results: `results/vllm_stage0_completions.json`, `results/sglang_stage0_completions.json`. Reproduce with `bench/gen_completions.py --engine {vllm,sglang} --port <port>` against a running server, then `bench/compare_stage0.py`.
 
-- [x] **Stage 1 — Black-box benchmark.** Done 2026-09-08. Fixed length: 512 input / 128 output tokens (`--dataset-name random --random-range-ratio 0`), open-loop Poisson, `--temperature 0` on both clients.
+- [~] **Stage 1 — Black-box benchmark.** First pass done 2026-09-08; **correction in progress** after independent review caught two measurement bugs. Fixed length: 512 input / 128 output tokens (`--dataset-name random --random-range-ratio 0`), open-loop Poisson, `--temperature 0` on both clients.
+
+  **Two bugs found in the numbers below, being re-run:**
+  1. **vLLM's "failed" requests (rate ≥32 in the fine-pass table) are a client-side artifact, not a server behavior.** Every failure's error message is `OSError: [Errno 24] Too many open files` — `vllm bench serve`'s own aiohttp client ran out of file descriptors (hit the default 1024 `ulimit -n`) once backlog pushed concurrent in-flight requests past that ceiling. It never reached the server. SGLang's client hit 2127 concurrent requests with zero errors — the two clients weren't running under comparable limits, so "vLLM hard-fails, SGLang never fails" is not yet a trustworthy comparison. The TTFT-based knee (rate 16→20, `failed=0` at both points) is unaffected and stands.
+  2. **`--seed 0` was reused unchanged at every rate point**, against a server never restarted between points. Diffing outputs confirmed it: 90% of `rate_12`'s completions are byte-identical to `rate_8`'s. Since both engines have prefix/radix caching on by default, later (larger `num_prompts`) rate points were partially replaying earlier points' exact prompt content — a caching effect that could leak into throughput numbers as if it were a scheduling effect. Fixed in `sweep_coarse.sh`/`sweep_fine.sh`: `--seed "$RATE"` instead of a fixed value.
+
+  Re-running the fine pass with `ulimit -n 65536` and per-rate seeds before trusting the table below.
 
   - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine) — `results/stage1_coarse/{vllm,sglang}/`. First signal: vLLM ceiling ~17 req/s with hard failures past it; SGLang scales further and never hard-fails.
   - **Fine pass** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines) — `results/stage1_fine/{vllm,sglang}/`. Resolved both knees precisely:
