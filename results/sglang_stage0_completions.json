@@ -4,7 +4,7 @@
     {
       "prompt": "Write a haiku about autumn leaves.",
       "completion": "Golden leaves descend\nTwirling, drifting to the ground\nAutumn's fleeting sigh",
-      "latency_s": 9.8
+      "latency_s": 9.66
     },
     {
       "prompt": "Explain the difference between TCP and UDP in two sentences.",
@@ -131,7 +131,7 @@
       "prompt": "How many continents are there on Earth?",
       "expected_answer": "7",
       "completion": "There are 7 continents on Earth, which are:\n\n1. Africa\n2. Antarctica\n3. Asia\n4. Australia\n5. Europe\n6. North America\n7. South America\n\nNote that some sources may group Europe and Asia together as a single continent, Eurasia, or combine North and South America as the American continent. However, the 7-continent model is the most commonly used and accepted classification.",
-      "latency_s": 0.96
+      "latency_s": 0.95
     },
     {
       "prompt": "What is 9 multiplied by 8?",
