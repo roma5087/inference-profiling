@@ -10,3 +10,6 @@ venv/
 *.gguf
 models/
 .cache/huggingface/
+
+# derived nsys sqlite exports — regenerable from .nsys-rep via nsys stats
+traces/*.sqlite

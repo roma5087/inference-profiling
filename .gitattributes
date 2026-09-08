@@ -2,3 +2,5 @@
 *.pt.trace.json filter=lfs diff=lfs merge=lfs -text
 *.nsys-rep filter=lfs diff=lfs merge=lfs -text
 *.qdrep filter=lfs diff=lfs merge=lfs -text
+*.trace.json.gz filter=lfs diff=lfs merge=lfs -text
+*.pt.trace.json.gz filter=lfs diff=lfs merge=lfs -text
