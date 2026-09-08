@@ -51,7 +51,7 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
 
 ## Plan
 
-- [ ] **Stage −1 — GPU selection.** Choose the card because of what it will show, not because it's cheap. A100/H100 80GB over A10/L4, so a real gap surfaces as scheduling/launch overhead instead of both engines converging on a memory-bound floor.
+- [x] **Stage −1 — GPU selection.** Done — GCP-backed A100 80GB (`a2-ultragpu-1g:nvidia-a100-80gb:1`), pausable, driver 595.71.05 / CUDA 13.2. Choose the card because of what it will show, not because it's cheap. A100/H100 80GB over A10/L4, so a real gap surfaces as scheduling/launch overhead instead of both engines converging on a memory-bound floor.
   - Default to **A100 80GB** over H100 — cheaper (~$1.6-2/hr on brokers like Brev), and an 8B model at bf16 won't saturate its bandwidth at the batch sizes Stage 1's sweep will hit. Switch to H100 only if Stage 1's coarse pass shows both engines' throughput curves *converging* to the same shape — that's the signal you're bandwidth-bound rather than scheduler-bound, and the fix is headroom, not more analysis.
   - Provider listing risk: some GPU broker listings (e.g. Brev/Hyperstack) are marked pre-release, **cannot be stopped or restarted**, and **delete all instance data irrecoverably** if the org runs out of credits. Check listing details before committing — prefer a stable listing at comparable price if one exists.
   - Disk storage is typically bundled and fixed at this GPU tier (e.g. 850GB SSD, included in the hourly rate) — not a separate sizing decision, and comfortably more than the checkpoint (~16GB) plus trace files need.
@@ -64,23 +64,28 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
     - Baseline (not gated): **8/20** sanity completions were exact string matches between engines — real observed drift under bf16 + different kernels, not required to be higher.
   - Results: `results/vllm_stage0_completions.json`, `results/sglang_stage0_completions.json`. Reproduce with `bench/gen_completions.py --engine {vllm,sglang} --port <port>` against a running server, then `bench/compare_stage0.py`.
 
-- [ ] **Stage 1 — Black-box benchmark.** Sweep request rate with each engine's own client (`vllm bench serve`, `sglang.bench_serving`), open-loop Poisson arrivals, fixed input/output length, ≥60s or ~200+ requests per rate point.
-  - Fixed length: 512 input / 128 output tokens, via `--dataset-name random --random-range-ratio 0` on both clients (exact length every request, not sampled around a mean). `bench/sweep_coarse.sh <vllm|sglang> <port>` runs it — `num_prompts = max(200, 60*rate)` per point.
-  - [x] **Coarse pass — done 2026-09-07.** Wide log-spaced grid (1, 2, 4, 8, 16, 32, 64 req/s), independently per engine. Results: `results/stage1_coarse/{vllm,sglang}/rate_*.json`.
+- [x] **Stage 1 — Black-box benchmark.** Done 2026-09-08. Fixed length: 512 input / 128 output tokens (`--dataset-name random --random-range-ratio 0`), open-loop Poisson, `--temperature 0` on both clients.
+
+  - **Coarse pass** (1,2,4,8,16,32,64 req/s, independent per engine) — `results/stage1_coarse/{vllm,sglang}/`. First signal: vLLM ceiling ~17 req/s with hard failures past it; SGLang scales further and never hard-fails.
+  - **Fine pass** (8,12,16,20,24,32,40,48,56,64 req/s, same grid both engines) — `results/stage1_fine/{vllm,sglang}/`. Resolved both knees precisely:
 
     | rate | vLLM throughput | vLLM failed | vLLM p99 TTFT | SGLang throughput | SGLang failed | SGLang p99 TTFT |
     |---|---|---|---|---|---|---|
-    | 1 | 0.99 | 0 | 0.09s | 1.02 | 0 | 0.08s |
-    | 2 | 1.97 | 0 | 0.05s | 2.03 | 0 | 0.10s |
-    | 4 | 3.90 | 0 | 0.10s | 3.76 | 0 | 0.11s |
-    | 8 | 7.81 | 0 | 0.18s | 8.01 | 0 | 0.12s |
-    | 16 | 15.41 | 0 | 0.37s | 14.41 | 0 | 0.14s |
-    | 32 | **17.13** | **90** | **44.0s** | 29.81 | 0 | 0.21s |
-    | 64 | 17.55 | 1980 | 43.8s | **43.68** | 0 | **16.2s** |
+    | 8 | 7.81 | 0 | 0.18s | 8.01 | 0 | 0.11s |
+    | 12 | 11.60 | 0 | 0.24s | 11.08 | 0 | 0.12s |
+    | 16 | 15.42 | 0 | 0.27s | 14.41 | 0 | 0.13s |
+    | 20 | 15.95 | 0 | **12.37s** | 18.37 | 0 | 0.13s |
+    | 24 | 16.46 | 0 | 24.32s | 22.21 | 0 | 0.14s |
+    | 32 | 17.01 | 101 | 44.42s | 29.93 | 0 | 0.23s |
+    | 40 | 17.14 | 570 | 44.44s | 35.37 | 0 | 0.51s |
+    | 48 | 17.28 | 1039 | 44.17s | 39.78 | 0 | **4.73s** |
+    | 56 | 17.34 | 1516 | 44.32s | 41.90 | 0 | 11.55s |
+    | 64 | 17.33 | 1994 | 44.40s | 43.40 | 0 | 17.38s |
 
-    **Finding:** both engines track requested rate near-perfectly through 16 req/s. vLLM's ceiling is ~17 req/s — past it, throughput flatlines and it starts **hard-failing requests** (90 at rate 32, 1980 of 3840 at rate 64). SGLang's ceiling is meaningfully higher (still scaling to ~44 req/s achieved at rate 64) and it **never hard-fails a request** at any rate tested — it degrades via latency instead (p99 TTFT 0.21s→16.2s, p99 ITL 461ms→1949ms between rate 32 and 64). Different overload behavior, not just a different number — a real candidate for Stage 2-4, not just a scheduler-detail difference.
-  - Fine pass, both engines together: shared finer-grained range bracketing the union of both knees — vLLM's (~16-32) and SGLang's (~32-64, likely 40-55 based on where p99 TTFT breaks). Grid: 8, 12, 16, 20, 24, 32, 40, 48, 56, 64 req/s (`bench/sweep_fine.sh <vllm|sglang> <port>`) — denser around 16-24 (vLLM's transition) and 32-56 (SGLang's).
-  - Don't open a profiler until this chart shows something worth explaining. *(It does now.)*
+    **vLLM's real knee is between rate 16 and 20** — p99 TTFT jumps from 0.27s to 12.4s in one step, then throughput hard-plateaus at ~17.3 req/s for every rate above that, with a growing count of outright request failures. **SGLang's knee is between rate 40 and 48** — p99 TTFT jumps from 0.51s to 4.7s — roughly **2.4x higher** than vLLM's, and throughput keeps climbing (not a hard plateau) even past its own knee, with zero request failures across the entire grid.
+
+    **This is the gap Stages 2-4 need to explain**, and it's not subtle: two qualitatively different failure modes (hard request rejection vs. graceful latency degradation) at meaningfully different throughput ceilings, on identical hardware, identical workload, identical precision.
+  - Don't open a profiler until this chart shows something worth explaining. *(It does.)*
 
 - [ ] **Stage 2 — Nsight Systems pass.** Capture `nsys` traces for both engines under the load from Stage 1. Catalog kernel names, idle gaps, CPU<->GPU overlap — inventory, don't chase yet.
 
