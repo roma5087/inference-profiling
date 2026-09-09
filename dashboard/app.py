@@ -88,7 +88,8 @@ with col_lat:
     fig.add_trace(go.Scatter(x=sglang["rate"], y=sglang["p99_ttft_s"], name="SGLang (FlashInfer)",
                               mode="lines+markers", line=dict(color=COLORS["sglang"], width=3)))
     fig.update_layout(title="p99 time-to-first-token vs. offered request rate",
-                       xaxis_title="request rate (req/s)", yaxis_title="p99 TTFT (s)", yaxis_type="log",
+                       xaxis_title="request rate (req/s)",
+                       yaxis=dict(title="p99 TTFT (s)", type="log", dtick=1),
                        legend=dict(orientation="h", yanchor="bottom", y=1.02))
     st.plotly_chart(fig, width="stretch")
 
