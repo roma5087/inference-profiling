@@ -1,0 +1,48 @@
+Loading /home/ubuntu/inference-profiling/traces/vllm_torch_profile2/rank0.1788912746304320876.pt.trace.json.gz ...
+Loaded 11821065 trace events
+
+=== Event category totals (us) ===
+       python_function:    1830202.6 ms
+                 Trace:      29567.6 ms
+                kernel:      29073.0 ms
+   gpu_user_annotation:      28863.3 ms
+                cpu_op:      13545.9 ms
+          cuda_runtime:      12129.2 ms
+       user_annotation:      11174.1 ms
+           cuda_driver:        361.3 ms
+              overhead:         35.5 ms
+            gpu_memset:         19.1 ms
+
+=== Self-CUDA-time by kernel name (top 30) ===
+Total GPU kernel time: 29.073s across 163731 launches, 48 distinct kernels
+
+   61.9%     17990.3ms    33256  avg=  540.96us  ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn
+   22.3%      6489.8ms     6688  avg=  970.36us  void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4,...
+    4.3%      1259.8ms     6176  avg=  203.98us  void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 64, 4, ...
+    3.7%      1070.7ms     3131  avg=  341.95us  ampere_bf16_s16816gemm_bf16_128x256_ldg8_f2f_stages_64x3_tn
+    1.7%       488.6ms     8864  avg=   55.12us  ampere_bf16_s16816gemm_bf16_128x128_ldg8_f2f_stages_64x3_tn
+    1.6%       466.9ms    13024  avg=   35.85us  triton_poi_fused_mul_silu_slice_1
+    0.8%       226.5ms    13024  avg=   17.39us  triton_red_fused_fused_add_rms_norm_2
+    0.6%       169.1ms    12617  avg=   13.40us  triton_poi_fused_3
+    0.6%       162.4ms    13024  avg=   12.47us  triton_red_fused_fused_add_rms_norm_0
+    0.5%       132.2ms    13024  avg=   10.15us  void vllm::reshape_and_cache_flash_kernel<__nv_bfloat16, __nv_bfloat16, (vllm...
+    0.4%       103.4ms     1312  avg=   78.83us  ampere_s16816gemm_bf16_128x64_ldg8_stages_64x4_tn
+    0.3%        95.4ms     2464  avg=   38.71us  ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x4_tn
+    0.3%        86.7ms      392  avg=  221.21us  ampere_bf16_s16816gemm_bf16_256x64_ldg8_f2f_stages_64x3_tn
+    0.2%        68.8ms    12608  avg=    5.46us  void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocas...
+    0.2%        61.8ms     1036  avg=   59.66us  ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn
+    0.2%        58.7ms     1952  avg=   30.09us  ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn
+    0.1%        29.9ms      407  avg=   73.58us  _gumbel_sample_kernel
+    0.1%        23.4ms     4288  avg=    5.46us  void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16,...
+    0.1%        16.0ms     6176  avg=    2.59us  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocas...
+    0.0%        10.1ms       64  avg=  158.18us  ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_32x6_tn
+    0.0%         7.9ms     1011  avg=    7.86us  _apply_write_kernel
+    0.0%         5.5ms     1312  avg=    4.20us  void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, ...
+    0.0%         5.5ms      407  avg=   13.49us  triton_poi_fused_1
+    0.0%         4.9ms      407  avg=   12.00us  triton_red_fused__to_copy_embedding_rms_norm_0
+    0.0%         3.7ms      160  avg=   22.98us  void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4,...
+    0.0%         3.5ms      407  avg=    8.55us  _gather_block_tables_kernel
+    0.0%         3.2ms      407  avg=    7.80us  void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native...
+    0.0%         3.2ms      407  avg=    7.74us  _combine_sampled_and_draft_tokens_kernel
+    0.0%         3.1ms      407  avg=    7.54us  _get_num_sampled_and_rejected_kernel
+    0.0%         2.8ms      407  avg=    6.99us  void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kerne...
