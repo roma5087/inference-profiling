@@ -157,10 +157,47 @@ vllm serve meta-llama/Meta-Llama-3-8B-Instruct --port 8001
   - Dashboard: `dashboard/app.py`, a Streamlit app reading directly from `results/stage1_fine/` and `results/stage4_flashinfer/` — interactive throughput/latency curves, the Stage 2-3 kernel-composition breakdown, and the Stage 4 before/after comparison. Verified locally via `streamlit.testing.v1.AppTest` (headless, no browser) — renders all 4 sections, 6 metrics, 4 charts, zero exceptions. `dashboard/requirements.txt` pins `streamlit`/`pandas`/`plotly`.
   - **Not yet done: public deployment to Streamlit Community Cloud.** That's an account-linking action (connects to a GitHub login) — left for a deliberate step outside this automated pass rather than done unprompted.
 
+- [x] **Stage 6 — Scheduling/batching isolation.** Done 2026-09-18. Stage 4 left hypothesis (b) — scheduling/backlog-driven batch inefficiency — untested. Stage 6 tests it, on a second GPU instance (below), and gets a real but partial answer plus one clean negative result.
+
+  **Ruled out before touching the GPU**: SGLang's RadixAttention prefix cache was the other half of hypothesis (b) named in Stage 4's write-up. `bench/sweep_fine.sh` uses `--dataset-name random --random-range-ratio 0` with a per-rate reseed *specifically so prompt content never repeats* (see that script's own header comment) — there is no shared-prefix content in this workload for a prefix cache to exploit. RadixAttention is not a live hypothesis for this benchmark; dropped without spending GPU time on it.
+
+  **New GPU instance, same environment fixes applied cleanly.** Stage 0's box was GCP-only; Stage 6 first tried a Crusoe A100 80GB listing (driver 565.57.01, `nvidia-smi` reports max CUDA 12.7) — vLLM 0.28.0's default torch wheel targets CUDA 13.0, so `torch.cuda.is_available()` came back `False` and vLLM's own precompiled `_C_stable_libtorch` extension failed on a missing `libcudart.so.13` even after forcing a CUDA-12.6-tagged torch build. Not fixable without running a driver below what the pinned stack expects — abandoned in favor of a second GCP A100 80GB instance (driver 595.91.07 / CUDA 13.2, matching Stage 0's box almost exactly). **All four of Stage 0's documented environment fixes (array.array patch, lib64/libcudart symlinks, CCCL compatibility define, SGLang's flashinfer already-fixed-upstream check) reproduced identically on the new box** — confirms they're real fixes for this stack, not artifacts of one specific machine.
+
+  **New environment bug found on this box, not documented in Stage 0**: the very first boot of a fresh vLLM server measured `Available KV cache memory: 3.01 GiB` (24,624 tokens) instead of the expected ~470K — a **19x under-provisioning** that would silently cap real concurrency on first deployment. Root cause, confirmed via `VLLM_LOGGING_LEVEL=DEBUG`: vLLM's KV-cache-sizing profiler measures `mem_get_info()` before vs. after a dummy forward pass; on a **cold FlashInfer-autotune cache** (`enable_flashinfer_autotune=True`), that forward pass's kernel-candidate benchmarking sweep permanently consumes GPU memory outside torch's allocator (`torch.accelerator.empty_cache()` can't reclaim it — the vLLM source's own docstring calls this out as a known category: "buffers for some attention backends"). A second restart, with the autotune cache now warm, measured a clean `total consumed: 15.21GiB` (matching the 14.96GiB checkpoint almost exactly) and the correct 470,912-token KV cache. **Practical implication beyond this project: a fresh vLLM 0.28.0 deployment can silently under-provision its KV cache by ~19x on its literal first boot.** Always check the `GPU KV cache size` boot-log line against the checkpoint's expected footprint before trusting a first-boot server; restart once if it looks too small.
+
+  **Inventory: batch-size-over-time via `/metrics` polling.** `bench/poll_metrics.py` polls each engine's Prometheus endpoint every 0.2s (`vllm:num_requests_running`/`waiting`; SGLang needs `--enable-metrics` explicitly — no `/metrics` route by default — exposing `sglang:num_running_reqs`/`num_queue_reqs`) during the identical rate=24 load Stage 2-3 used. Results: `results/stage6_inventory/{vllm,sglang}/`.
+
+  **Self-correction, same discipline as Stage 1's seed-reuse catch:** the first pass computed means over the *entire* poller CSV, which included idle padding before/after the actual load window (the poller starts before the load client and is killed manually after it's done) — and the padding wasn't symmetric (72% of SGLang's rows were idle vs. 54% of vLLM's), which inflated the apparent gap. Restricting to each file's actual busy window (first/last non-zero sample, cross-checked against the load client's own reported duration):
+
+  | | mean running (busy window) | max running | mean waiting | max waiting |
+  |---|---|---|---|---|
+  | vLLM (FlashInfer) | 166.0 | 256 | 9.8 | 56 |
+  | SGLang | 58.4 | 84 | 0.0 | 0 |
+
+  **vLLM keeps ~2.8-3x more requests concurrently in-flight than SGLang at the identical offered load** (not the ~4.7x the uncorrected means first suggested), and never once formally queues a request in the corrected window either — the difference sits entirely in "running." This gives Stage 3's finding a mechanism: vLLM's GEMM kernels ran ~2x slower per-launch under backlog (540μs vs. 266μs) because vLLM's scheduler is running substantially larger batches at the same load — matches the observed max running (256) hitting vLLM's *default* `max_num_seqs=256` exactly, i.e. vLLM was running right up against its own admission ceiling.
+
+  **Single-variable test: cap `--max-num-seqs` to SGLang's observed ceiling (84), re-run the full Stage 1 fine-sweep grid.** `bench/launch_vllm.sh 8001 84`, `bench/sweep_stage6.sh 8001 maxseqs84`. Result — **a clean negative, not a confirmation**:
+
+  | rate | uncapped (this box) | capped @84 (this box) |
+  |---|---|---|
+  | 16 | 15.52 / 0.31s | 15.51 / 1.09s |
+  | 20 | 18.64 / 2.44s | 15.96 / 13.38s |
+  | 24 | 19.88 / 9.41s | 15.88 / 27.92s |
+  | 32 | 20.58 / 30.33s | 16.38 / 54.87s |
+  | 64 | 20.83 / 119.76s | 16.45 / 170.31s |
+
+  Capping admission to match SGLang's observed peak **dropped vLLM's throughput ceiling ~21%** (20.8→16.4 req/s) and made P99 TTFT *worse at every rate ≥16*, not better. Both sweeps ran on the same instance (the "uncapped" row was re-measured here specifically to rule out the cross-machine confound the review below caught) and matched Stage 4's original-box numbers closely (20.83 vs. 20.95 req/s at rate 64), confirming the two GPU instances behave consistently and the regression is real, not hardware noise.
+
+  **Interpretation: batch size is a symptom of SGLang's efficiency, not its cause.** SGLang runs fewer concurrent requests because it clears each one fast enough that fewer stay in-flight — it isn't throttling admission to get there. Forcing vLLM into the same small batch via a hard cap doesn't replicate that speed; it just creates admission-side backpressure (formal queueing) without fixing whatever makes each vLLM decode iteration slower per unit of batched work, so throughput drops and latency gets worse instead of better. The remaining ~2.05x gap from Stage 4 is still unexplained. This experiment narrows where to look next: something about *per-iteration* scheduling — how each engine interleaves prefill and decode within a single batching step, not how many requests it's willing to admit — is the more likely remaining lever, and a harder one to isolate with a single CLI flag.
+
+  **Reviewed by three independent passes** (code correctness, statistical audit of the claims above, methodology rigor against Stages 0-5's own bar) before being written up here. One real bug found and fixed: `poll_metrics.py` originally wrote blank cells and reported success on a metric-regex miss instead of failing loudly — fixed to raise immediately, matching this project's fail-loud-not-silent standard from Stage 1. Both `--max-num-seqs` boot logs (uncapped and capped) are preserved under `results/stage6_*/` with their `GPU KV cache size` line intact, so the KV-cache-parity claim above is a checked artifact, not an assertion.
+
+  **What Stage 6 doesn't close**: single run per rate point (Stage 1's own precedent needed two independent version pairs before a number was trusted, specifically because n=1 had already produced two silently wrong results); the inventory pass is rate=24 only, so "vLLM admits more concurrent requests" is shown at one load level, not proven across the full curve. Both would need more GPU time to close properly and weren't spent without checking in first.
+
 ## Layout
 
-- `bench/` — benchmark scripts and sweep configs (Stage 1)
+- `bench/` — benchmark scripts and sweep configs (Stage 1); `poll_metrics.py`, `launch_vllm.sh`, `launch_sglang.sh`, `sweep_stage6.sh` (Stage 6)
 - `traces/` — nsys and torch profiler captures (Stage 2-3)
-- `results/` — parsed metrics, plots, comparison tables (Stage 1, 4)
+- `results/` — parsed metrics, plots, comparison tables (Stage 1, 4); `stage6_inventory/`, `stage6_maxseqs84/`, `stage6_uncapped_thisbox/` (Stage 6, including preserved server boot logs)
 - `dashboard/` — Streamlit app for Stage 5 (empty until real results exist)
 - `write-up.md` — Stage 5 deliverable (stub until then)
