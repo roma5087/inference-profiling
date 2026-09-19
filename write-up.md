@@ -81,8 +81,39 @@ attention-kernel choice explains a real, measurable slice of the gap (hypothesis
 remaining ~2.05x gap, now with the attention kernel controlled for, points at scheduling/backlog
 effects or a structural difference between the engines — e.g. SGLang's RadixAttention
 prefix-cache-aware scheduler — that a single-variable experiment isn't designed to isolate
-(hypothesis 2). That's the natural next thing to profile, out of scope for this project's stated
-plan of changing one variable at a time.
+(hypothesis 2). That's the natural next thing to profile — see below.
+
+## The follow-up: is it scheduling, or is it prefix caching?
+
+Hypothesis 2 named two candidate mechanisms: SGLang's RadixAttention prefix cache, and
+backlog-driven batch inefficiency. Prefix caching turned out to be untestable by construction —
+this benchmark's synthetic workload uses fully random prompt content with a fresh seed per rate
+point, specifically to prevent caching effects from leaking into the throughput numbers. There's
+no repeated content for RadixAttention to exploit here, so it's not a live explanation for this
+gap.
+
+Polling each engine's live request-scheduling metrics (`/metrics`) during the same rate=24 load
+found the real signal: **vLLM keeps ~2.8-3x more requests concurrently in-flight than SGLang at
+the identical offered load** (max observed: 256 vs. 84 — vLLM was running right up against its
+own default `max_num_seqs=256` admission ceiling). That gives the GEMM-latency finding above a
+mechanism: larger concurrent batches produce the larger, less efficient GEMM shapes Stage 3
+measured.
+
+The natural next experiment: cap vLLM's admission to SGLang's observed ceiling
+(`--max-num-seqs 84`) and re-run the full sweep. **Result: a clean negative, not a fix.**
+Throughput ceiling *dropped* ~21% (20.8 → 16.4 req/s) and P99 latency got *worse* at every rate
+≥16, not better.
+
+**Batch size is a symptom of SGLang's per-iteration scheduling efficiency, not its cause.**
+SGLang runs fewer concurrent requests because it clears each one fast enough that fewer stay
+in-flight — it isn't throttling admission to get there. Forcing vLLM into the same small batch
+via a hard cap just creates admission-side backpressure without fixing whatever makes each vLLM
+decode iteration slower per unit of batched work. The remaining ~2.05x gap is still open; the
+real lever is likely something about how each engine interleaves prefill and decode within a
+single batching step — a harder thing to isolate with one CLI flag. Full detail, including the
+environment work and a real vLLM 0.28.0 KV-cache-sizing bug found along the way (a cold kernel-
+autotune cache can silently under-provision KV cache ~19x on first boot), in the
+[README's Stage 6](README.md#plan).
 
 ## Appendix: what it actually takes to run both engines
 
